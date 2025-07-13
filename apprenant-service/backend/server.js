@@ -11,6 +11,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const renduRoutes = require("./src/routes/renduRoutes");
+app.use("/api/rendus", renduRoutes);
+
 const apprenantRoutes = require("./src/routes/apprenantRoutes");
 app.use("/api/apprenants", apprenantRoutes);
 
