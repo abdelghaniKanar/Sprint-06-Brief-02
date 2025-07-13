@@ -16,6 +16,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const competenceRoutes = require("./src/routes/competenceRoutes");
+app.use("/api/competences", competenceRoutes);
+
 // Routes placeholder
 app.get("/", (req, res) => {
   res.json({ message: "Competence microservice is running!" });
