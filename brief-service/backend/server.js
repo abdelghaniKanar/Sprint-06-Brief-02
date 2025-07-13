@@ -11,6 +11,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const briefRoutes = require("./src/routes/briefRoutes");
+app.use("/api/briefs", briefRoutes);
+
 app.get("/", (req, res) => {
   res.json({ message: "Brief microservice is running!" });
 });
