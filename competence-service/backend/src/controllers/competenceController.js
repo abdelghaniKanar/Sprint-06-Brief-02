@@ -1,7 +1,35 @@
 const Competence = require("../models/Competence");
 
-// Create new competence
-exports.createCompetence = async (req, res) => {
+// Importance to weight mapping
+const importanceWeight = {
+  High: 3,
+  Normal: 2,
+  Low: 1,
+};
+
+// Logic to compute validated status
+function computeValidationStatus(subCompetences) {
+  const validated = subCompetences.filter((sc) => sc.validated);
+  const notValidated = subCompetences.filter((sc) => !sc.validated);
+
+  if (validated.length > notValidated.length) return true;
+  if (validated.length < notValidated.length) return false;
+
+  // If counts are equal → compare weighted importance
+  const validWeight = validated.reduce(
+    (sum, sc) => sum + importanceWeight[sc.importance],
+    0
+  );
+  const notValidWeight = notValidated.reduce(
+    (sum, sc) => sum + importanceWeight[sc.importance],
+    0
+  );
+
+  return validWeight >= notValidWeight;
+}
+
+// Create Competence
+const createCompetence = async (req, res) => {
   try {
     const { code, name, subCompetences } = req.body;
 
@@ -10,17 +38,19 @@ exports.createCompetence = async (req, res) => {
     }
 
     const existing = await Competence.findOne({ code });
-    if (existing)
-      return res.status(409).json({ message: "Code already exists" });
+    if (existing) {
+      return res
+        .status(409)
+        .json({ message: "Competence with this code already exists" });
+    }
 
-    const validatedCount = subCompetences.filter((sc) => sc.validated).length;
-    const notValidatedCount = subCompetences.length - validatedCount;
+    const validated = computeValidationStatus(subCompetences);
 
     const competence = new Competence({
       code,
       name,
       subCompetences,
-      validated: validatedCount >= notValidatedCount,
+      validated,
     });
 
     await competence.save();
@@ -30,12 +60,14 @@ exports.createCompetence = async (req, res) => {
   }
 };
 
-// Get all or one
-exports.getCompetences = async (req, res) => {
+// Get Competences (all or one)
+const getCompetences = async (req, res) => {
   try {
     if (req.params.id) {
       const competence = await Competence.findById(req.params.id);
-      if (!competence) return res.status(404).json({ message: "Not found" });
+      if (!competence) {
+        return res.status(404).json({ message: "Competence not found" });
+      }
       return res.json(competence);
     }
 
@@ -46,64 +78,70 @@ exports.getCompetences = async (req, res) => {
   }
 };
 
-// Update competence
-exports.updateCompetence = async (req, res) => {
+//Update full competence
+const updateCompetence = async (req, res) => {
   try {
     const competence = await Competence.findById(req.params.id);
-    if (!competence) return res.status(404).json({ message: "Not found" });
+    if (!competence) {
+      return res.status(404).json({ message: "Competence not found" });
+    }
 
     competence.code = req.body.code || competence.code;
     competence.name = req.body.name || competence.name;
     competence.subCompetences =
       req.body.subCompetences || competence.subCompetences;
 
-    const validatedCount = competence.subCompetences.filter(
-      (sc) => sc.validated
-    ).length;
-    const notValidatedCount = competence.subCompetences.length - validatedCount;
-    competence.validated = validatedCount >= notValidatedCount;
+    competence.validated = computeValidationStatus(competence.subCompetences);
 
     await competence.save();
     res.json(competence);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(400).json({ message: err.message });
   }
 };
 
-// Delete
-exports.deleteCompetence = async (req, res) => {
+//Delete competence
+const deleteCompetence = async (req, res) => {
   try {
     const deleted = await Competence.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ message: "Not found" });
-    res.json({ message: "Deleted" });
+    if (!deleted) {
+      return res.status(404).json({ message: "Competence not found" });
+    }
+    res.json({ message: "Competence deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
-
-// Update sub-competence
-exports.updateSub = async (req, res) => {
+// Update a specific sub-competence validation
+const updateSubCompetence = async (req, res) => {
   try {
     const { competenceId, subId } = req.params;
     const { validated } = req.body;
 
     const competence = await Competence.findById(competenceId);
-    if (!competence) return res.status(404).json({ message: "Not found" });
+    if (!competence) {
+      return res.status(404).json({ message: "Competence not found" });
+    }
 
     const sub = competence.subCompetences.id(subId);
-    if (!sub) return res.status(404).json({ message: "Sub not found" });
+    if (!sub) {
+      return res.status(404).json({ message: "SubCompetence not found" });
+    }
 
     sub.validated = validated;
-
-    const validatedCount = competence.subCompetences.filter(
-      (sc) => sc.validated
-    ).length;
-    const notValidatedCount = competence.subCompetences.length - validatedCount;
-    competence.validated = validatedCount >= notValidatedCount;
+    competence.validated = computeValidationStatus(competence.subCompetences);
 
     await competence.save();
     res.json(competence);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
+};
+
+module.exports = {
+  createCompetence,
+  getCompetences,
+  updateCompetence,
+  deleteCompetence,
+  updateSubCompetence,
 };
