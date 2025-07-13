@@ -11,6 +11,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const apprenantRoutes = require("./src/routes/apprenantRoutes");
+app.use("/api/apprenants", apprenantRoutes);
+
 app.get("/", (req, res) => {
   res.json({ message: "Apprenant microservice is running!" });
 });
